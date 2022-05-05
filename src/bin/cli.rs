@@ -1,7 +1,7 @@
-use clap::Command;
+use clap::{command, Command};
 
 fn main() {
-    let matches = Command::new("ditto-authtool")
+    let matches = command!()
         .subcommand_required(true)
         .subcommand(
             Command::new("generate-shared-key")
