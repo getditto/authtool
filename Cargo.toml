@@ -1,0 +1,25 @@
+[package]
+name = "ditto-authtool"
+version = "0.1.0"
+authors = ["Ditto Engineering Team <engineering@ditto.live>"]
+edition = "2021"
+license = "Apache-2.0"
+resolver = "2"
+homepage = "https://www.ditto.live"
+documentation = "https://docs.ditto.live/"
+description = "Generate authentication for devices in a Ditto mesh."
+
+[[bin]]
+name = "ditto-authtool"
+path = "src/bin/cli.rs"
+
+[dependencies]
+base64 = "0.13.0"
+ring = "0.16.20"
+thiserror = "1.0.31"
+
+# cli
+clap = "3.1.15"
+
+[dev-dependencies]
+rcgen = "0.9.2"

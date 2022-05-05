@@ -1,0 +1,33 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - v[0-9]+.*
+
+jobs:
+  create-release:
+    name: Create GitHub release
+    if: github.repository_owner == 'getditto'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: taiki-e/create-gh-release-action@v1
+        with:
+          changelog: CHANGELOG.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  upload-assets:
+    needs: create-release
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v2
+      - uses: taiki-e/upload-rust-binary-action@v1
+        with:
+          bin: ditto-authtool
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
