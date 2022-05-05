@@ -14,6 +14,12 @@ ditto-authtool generate-shared-key
 
 Head to the [Releases page](https://github.com/getditto/authtool/releases) and download the binary for your platform.
 
+Mac users may need to remove the quarantine flag:
+
+```
+xattr -r -d com.apple.quarantine ./ditto-authtool
+```
+
 ### From Source
 
 Ensure you have a stable Rust toolchain installed with [rustup](https://rustup.rs/). Clone this repository and open a
