@@ -63,42 +63,6 @@ pub struct InBandCertificate {
     pub payload: Vec<u8>,
 
     /// Public key of the signer. Should be 33 bytes.
-    ///
-    /// This is of limited use before we have subauthorities: the CA will have one or two keys and
-    /// we could simply try all the options. In the future though the signer could be some other
-    /// arbitrary peer (a subauthority). We will want to look up their pubkey directly to see if we
-    /// have the chain of trust cached; if we don't then we will request it. For multihop links
-    /// this extra efficiency is especially valuable.
-    ///
-    /// (By comparison, TLS will by default send the entire chain on every connection. If we want
-    /// to optimise that then we will do so through TLS-standard means. `rustls` has the
-    /// concept of a certificate cache but it needs to be segmented/matched by Ditto peers
-    /// instead of URLs.)
-    ///
-    /// A note on algorithm choices: here we are using an ECDSA private key to create a signature.
-    /// This is the state-of-the-art for elliptic curve signatures. It is comparable to Ed25519,
-    /// both being considered as having similar security and speed, depending on one's opinion of
-    /// the NSA and NIST.
-    ///
-    /// One special property of ECDSA is that given the 64-byte signature, for the cost of one
-    /// extra byte, you can unambiguously derive the public key that was used to create the
-    /// signature. This is helpful in space-constrained situations where you would rather not
-    /// include both.
-    ///
-    /// Unfortunately this recoverable signature type is not implemented in the Rust crate `p256`.
-    /// It _is_ implemented for K-256 however, which is popular mostly because it's used in
-    /// Ethereum, where they really care about size because it's a blockchain. However the K-256
-    /// curve is somewhat unusual and only has wide use among blockchains while everyone else
-    /// seems to be sticking to either Ed25519 or P-256. At time of writing the most popular crate
-    /// for ed25519, ed25519-dalek, has an absent maintainer so this is another reason to stick
-    /// with P-256.
-    ///
-    /// Rather than get distracted attempting to implement the missing key recovery for P-256, we
-    /// will simply wear the extra 33 bytes and specify the public key directly. We may be able to
-    /// add it later.
-    ///
-    /// Furthermore, P-256 keys are what we have used so far to sign our X.509 certificates  and
-    /// JWTs so we have the possibility of sharing keys.
     #[serde(rename = "k", with = "serde_bytes")]
     pub ecdsa_verifying_key: Vec<u8>,
 
@@ -147,6 +111,8 @@ pub enum ManualIdentity {
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ManualIdentityV1 {
     version: u16,
+    /// The application id
+    app_id: String,
     /// This peer private key
     private_key: Vec<u8>,
     /// Exipry date time
@@ -163,6 +129,7 @@ impl ManualIdentityV1 {
     pub fn new() -> Self {
         Self {
             version: 1,
+            app_id: "test_app_id".to_string(),
             private_key: vec![],
             expiry: chrono::Utc::now(),
             identity_data: vec![],
