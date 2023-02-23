@@ -1,5 +1,7 @@
 //! Shared key authentication
 
+use std::collections::HashMap;
+
 use ring::rand::SystemRandom;
 use ring::signature::{EcdsaKeyPair, ECDSA_P256_SHA256_ASN1_SIGNING};
 use serde::{Deserialize, Serialize};
@@ -78,6 +80,8 @@ pub struct InBandAuthV1 {
     /// CA public keys to verify the in band certificate
     inband_ca_pubkey_keys: Vec<Vec<u8>>,
     // inband_metadata: Option<??>,
+    sub_authority_certificate: Option<Vec<u8>>,
+    metadata: HashMap<String, String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
@@ -88,6 +92,9 @@ pub struct X509AuthV1 {
     my_certificate: Vec<u8>,
     /// CA certificates to verify my own certificate
     ca_certificates: Vec<Vec<u8>>,
+
+    sub_authority_certificate: Option<Vec<u8>>,
+    metadata: HashMap<String, String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
@@ -135,6 +142,7 @@ impl ManualIdentity {
     }
 }
 
+// Helper struct to help serialize/deserialize `ManualIdentity`
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 struct ManualIdentityStoredFormat {
     version: u16,
