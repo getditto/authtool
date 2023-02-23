@@ -28,7 +28,7 @@ const DITTO_IDENTITY_TAG: &str = "DITTO IDENTITY";
 pub const IN_BAND_CERTIFICATE_VERSION: u32 = 1;
 
 /// Information which is verified by the signature inside the `InBandCertificate`.
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct Payload {
     /// Application for which this certificate is granted
     #[serde(rename = "a")]
@@ -50,7 +50,7 @@ pub struct Payload {
 
 /// An assertion that a certain `IdentityData` is valid. The `IdentityData` contains a mapping from
 /// information about the peer to their Peer Key.
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct InBandCertificate {
     /// Version of certificate format. See [IN_BAND_CERTIFICATE_VERSION].
     #[serde(rename = "v")]
@@ -71,7 +71,7 @@ pub struct InBandCertificate {
     pub ecdsa_signature: Vec<u8>,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct InBandAuthV1 {
     /// This peer's InBandCertificate
     inband_certificate: InBandCertificate,
@@ -80,7 +80,7 @@ pub struct InBandAuthV1 {
     // inband_metadata: Option<??>,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct X509AuthV1 {
     /// This peer's private key
     private_key: Vec<u8>,
@@ -90,7 +90,7 @@ pub struct X509AuthV1 {
     ca_certificates: Vec<Vec<u8>>,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub enum JwtAuthV1 {
     OnlineAuth {
         url: String,
@@ -102,41 +102,16 @@ pub enum JwtAuthV1 {
     },
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(tag = "type")]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[serde(try_from = "ManualIdentityStoredFormat")]
+#[serde(into = "ManualIdentityStoredFormat")]
 pub enum ManualIdentity {
     V1(ManualIdentityV1),
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
-pub struct ManualIdentityV1 {
-    version: u16,
-    /// The application id
-    app_id: String,
-    /// This peer private key
-    private_key: Vec<u8>,
-    /// Exipry date time
-    expiry: chrono::DateTime<chrono::Utc>,
-    /// Identity data issued by auth server
-    identity_data: Vec<u8>,
-
-    inband_auth: Option<InBandAuthV1>,
-    x509_auth: Option<X509AuthV1>,
-    jwt_auth: Option<JwtAuthV1>,
-}
-
-impl ManualIdentityV1 {
-    pub fn new() -> Self {
-        Self {
-            version: 1,
-            app_id: "test_app_id".to_string(),
-            private_key: vec![],
-            expiry: chrono::Utc::now(),
-            identity_data: vec![],
-            inband_auth: None,
-            x509_auth: None,
-            jwt_auth: None,
-        }
+impl ManualIdentity {
+    pub fn new_v1(identity: ManualIdentityV1) -> Self {
+        Self::V1(identity)
     }
 
     pub fn to_string(&self) -> String {
@@ -155,8 +130,83 @@ impl ManualIdentityV1 {
         if p.tag != DITTO_IDENTITY_TAG {
             return Err(anyhow::anyhow!("Wrong tag"));
         }
-        let ret: ManualIdentityV1 = serde_cbor::from_slice(&p.contents)?;
+        let ret: ManualIdentity = serde_cbor::from_slice(&p.contents)?;
         Ok(ret)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+struct ManualIdentityStoredFormat {
+    version: u16,
+    #[serde(flatten)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    v1: Option<ManualIdentityV1>,
+}
+
+#[derive(Error, Debug)]
+pub enum ManualIdentitySerializationError {
+    #[error("Data stored does not match version tag")]
+    VersionMismatched,
+    #[error("Unrecognized version tag")]
+    UnrecognizedVersion,
+}
+
+impl TryFrom<ManualIdentityStoredFormat> for ManualIdentity {
+    type Error = ManualIdentitySerializationError;
+
+    fn try_from(value: ManualIdentityStoredFormat) -> Result<Self, Self::Error> {
+        if value.version == 1 {
+            let Some(v1) = value.v1 else {
+                return Err(ManualIdentitySerializationError::VersionMismatched);
+            };
+            return Ok(Self::V1(v1));
+        }
+
+        Err(ManualIdentitySerializationError::UnrecognizedVersion)
+    }
+}
+
+impl From<ManualIdentity> for ManualIdentityStoredFormat {
+    fn from(input: ManualIdentity) -> Self {
+        match input {
+            ManualIdentity::V1(v1) => Self {
+                version: 1,
+                v1: Some(v1),
+            },
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+pub struct ManualIdentityV1 {
+    /// The application id
+    app_id: String,
+    /// This peer private key
+    private_key: Vec<u8>,
+    /// Exipry date time
+    expiry: chrono::DateTime<chrono::Utc>,
+    /// Identity data issued by auth server
+    identity_data: Vec<u8>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    inband_auth: Option<InBandAuthV1>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    x509_auth: Option<X509AuthV1>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    jwt_auth: Option<JwtAuthV1>,
+}
+
+impl ManualIdentityV1 {
+    pub fn new() -> Self {
+        Self {
+            app_id: "test_app_id".to_string(),
+            private_key: vec![],
+            expiry: chrono::Utc::now(),
+            identity_data: vec![],
+            inband_auth: None,
+            x509_auth: None,
+            jwt_auth: None,
+        }
     }
 }
 
@@ -165,7 +215,8 @@ mod tests {
     use super::*;
     #[test]
     fn test_encoding_decoding() {
-        let identity = ManualIdentityV1::new();
+        let v1 = ManualIdentityV1::new();
+        let identity = ManualIdentity::new_v1(v1);
 
         let pem_string = identity.to_string();
         let lines = pem_string.lines().collect::<Vec<_>>();
@@ -173,7 +224,7 @@ mod tests {
         assert_eq!(lines[0], "-----BEGIN DITTO IDENTITY-----");
         assert_eq!(lines.last().unwrap(), &"-----END DITTO IDENTITY-----");
 
-        let parsed_identity = ManualIdentityV1::from_string(&pem_string).unwrap();
+        let parsed_identity = ManualIdentity::from_string(&pem_string).unwrap();
 
         assert_eq!(parsed_identity, identity);
     }
@@ -190,5 +241,16 @@ mod tests {
         // Also that it can be read by rcgen for certificate signing
         let rc_key = rcgen::KeyPair::from_der(&pkcs);
         assert!(rc_key.is_ok());
+    }
+
+    #[test]
+    fn fields_flatten() {
+        let v1 = ManualIdentityV1::new();
+        let identity = ManualIdentity::new_v1(v1);
+
+        let json = serde_json::to_value(&identity).unwrap();
+        // Ensure the v1 identity fields has been flatten
+        let json_app_id = json["app_id"].as_str().unwrap();
+        assert_eq!(json_app_id, "test_app_id");
     }
 }

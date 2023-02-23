@@ -19,13 +19,14 @@ ring = "0.16.20"
 thiserror = "1.0.31"
 
 # cli
+anyhow = "1.0.69"
 chrono = { version = "0.4.23", features = ["serde"] }
 clap = { version = "3.1.15", features = ["cargo"] }
 pem = "1.1.1"
 serde = { version = "1.0.152", features = ["derive"] }
-serde_cbor = "0.11.2"
-anyhow = "1.0.69"
 serde_bytes = "0.11.9"
+serde_cbor = "0.11.2"
+serde_json = "1.0.93"
 
 [dev-dependencies]
 rcgen = "0.9.2"
