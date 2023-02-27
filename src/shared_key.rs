@@ -24,9 +24,7 @@ pub enum SharedKeyError {
 
 #[cfg(test)]
 mod tests {
-    use ring::signature::{EcdsaKeyPair, ECDSA_P256_SHA256_ASN1_SIGNING};
-
-    use crate::shared_key::generate_key;
+    use super::*;
 
     #[test]
     fn key_round_trip() {

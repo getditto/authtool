@@ -209,6 +209,7 @@ mod tests {
     use chrono::{DateTime, NaiveDate};
 
     use super::*;
+
     #[test]
     fn test_encoding_decoding() {
         let v1 = ManualIdentityV1::new(
