@@ -6,3 +6,4 @@
 //! This crate may be used directly as a library or via the included CLI binary.
 
 pub mod shared_key;
+pub mod manual_identity;
